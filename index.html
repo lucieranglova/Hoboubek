@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chyť holuba!</title>
+  <!-- Favicon – holub nakreslený jako SVG přímo v HTML -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='6' cy='22' rx='6' ry='3.5' fill='%234a4a60' transform='rotate(-15 6 22)'/%3E%3Cellipse cx='14' cy='20' rx='8' ry='4' fill='%235a5a70' transform='rotate(-8 14 20)'/%3E%3Cellipse cx='18' cy='19' rx='9' ry='6' fill='%2378789a'/%3E%3Cellipse cx='22' cy='19' rx='5' ry='5' fill='%23a898b8'/%3E%3Cellipse cx='22' cy='14' rx='4' ry='3' fill='%235040a0' opacity='.6'/%3E%3Ccircle cx='23' cy='11' r='6' fill='%2378789a'/%3E%3Cpolygon points='27,10 32,12 27,12' fill='%23c8a830'/%3E%3Cpolygon points='27,12 31,12 27,13.5' fill='%23b09020'/%3E%3Ccircle cx='25' cy='9' r='2.2' fill='%23dd4e1a'/%3E%3Ccircle cx='25.5' cy='8.5' r='.8' fill='%23111'/%3E%3Ccircle cx='26.2' cy='8' r='.4' fill='white'/%3E%3Cline x1='17' y1='25' x2='16' y2='30' stroke='%23c89830' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='21' y1='25' x2='22' y2='30' stroke='%23c89830' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
     /* === RESET A ZÁKLADNÍ STYLY === */
@@ -136,6 +138,8 @@
       width: 90px;
       height: 80px;
       cursor: pointer;
+      /* Vypne double-tap zoom na mobilu a odstraní 300ms zpoždění kliknutí */
+      touch-action: manipulation;
     }
 
     /* Otočení celého holuba doleva */
@@ -742,11 +746,15 @@
     // ==========================================
     function nahodnaPoloha() {
       const maxX = window.innerWidth - 115;
+      // Na úzkém displeji (mobil) snižujeme požadovanou vzdálenost,
+      // jinak by smyčka nikdy neskončila – to byl bug na mobilu
+      const minVzdalenost = Math.min(180, Math.floor(maxX * 0.38));
       let novaX;
-      // Opakuj, dokud nová pozice není alespoň 200 px daleko
+      let pokusy = 0;
       do {
         novaX = Math.floor(Math.random() * maxX);
-      } while (Math.abs(novaX - poziceX) < 200);
+        pokusy++;
+      } while (Math.abs(novaX - poziceX) < minVzdalenost && pokusy < 30);
       return novaX;
     }
 
@@ -795,10 +803,9 @@
     }
 
     // ==========================================
-    // KLIKNUTÍ NA HOLUBA – holub utíká!
+    // SPOLEČNÁ LOGIKA PRO KLIKNUTÍ / DOTYK
     // ==========================================
-    holubEl.addEventListener('click', function(e) {
-      // Zabrání probublávání kliknutí na pozadí
+    function reagujNaChyceni(e) {
       e.stopPropagation();
 
       // Holub uletí na náhodnou vzdálenou pozici
@@ -809,7 +816,17 @@
 
       // Resetuj časovač automatického pohybu
       nastavAutomatickyPohyb();
-    });
+    }
+
+    // Kliknutí myší (desktop)
+    holubEl.addEventListener('click', reagujNaChyceni);
+
+    // Dotyk prstem (mobil) – preventDefault zabrání tomu,
+    // aby se po touchstart spustil ještě duplicitní click
+    holubEl.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      reagujNaChyceni(e);
+    }, { passive: false });
 
     // ==========================================
     // SPUŠTĚNÍ HRY
