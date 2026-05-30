@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chyť holuba!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* === RESET A ZÁKLADNÍ STYLY === */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      background: #0f1923;
+      cursor: crosshair;
+      user-select: none;
+    }
+
+    /* === NEBE – přechod od noci nahoře po soumrak dole === */
+    #obloha {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 75%;
+      background: linear-gradient(
+        to bottom,
+        #080818 0%,
+        #0f1f38 30%,
+        #18304a 55%,
+        #2a4a6a 70%,
+        #b04820 85%,
+        #d86820 95%,
+        #e89030 100%
+      );
+      z-index: 1;
+    }
+
+    /* === HVĚZDY (generovány JS) === */
+    #hvezdy {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 60%;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .hvezda {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: blikani ease-in-out infinite;
+    }
+
+    @keyframes blikani {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.15; }
+    }
+
+    /* === MRAKY (generovány JS) === */
+    .mrak-kontejner {
+      position: fixed;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    @keyframes letMraku {
+      from { left: -280px; }
+      to   { left: calc(100vw + 280px); }
+    }
+
+    /* === BUDOVY (generovány JS) === */
+    #budovy-kontejner {
+      position: fixed;
+      bottom: 70px;
+      left: 0;
+      width: 100%;
+      z-index: 4;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .budova {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .okno {
+      position: absolute;
+      border-radius: 2px;
+    }
+
+    /* === CHODNÍK === */
+    #chodnik {
+      position: fixed;
+      bottom: 0; left: 0;
+      width: 100%; height: 70px;
+      background: linear-gradient(to bottom, #6a6a6a 0%, #555 40%, #444 100%);
+      z-index: 5;
+    }
+
+    /* Okraj chodníku */
+    #chodnik::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 5px;
+      background: #888;
+    }
+
+    /* Spáry v chodníku */
+    #chodnik::after {
+      content: '';
+      position: absolute;
+      top: 20px; left: 0;
+      width: 100%; height: 2px;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent 0px, transparent 48px,
+        rgba(0,0,0,0.3) 48px, rgba(0,0,0,0.3) 50px
+      );
+    }
+
+    /* === HOLUB WRAPPER – pohybuje se po chodníku === */
+    #holub-wrapper {
+      position: fixed;
+      bottom: 68px;
+      z-index: 10;
+      transition: left 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    /* === HOLUB – flipuje se podle směru pohybu === */
+    #holub {
+      position: relative;
+      width: 90px;
+      height: 80px;
+      cursor: pointer;
+    }
+
+    /* Otočení celého holuba doleva */
+    #holub-wrapper.doleva #holub {
+      transform: scaleX(-1);
+    }
+
+    /* --- ČÁSTI HOLUBA (vrstvy zdola nahoru) --- */
+
+    /* Ocas – nejnižší vrstva */
+    .ocas {
+      position: absolute;
+      width: 26px;
+      height: 13px;
+      background: linear-gradient(135deg, #545468 0%, #444458 100%);
+      border-radius: 2px 0 30% 10%;
+      bottom: 23px;
+      left: 4px;
+      z-index: 1;
+      transform: rotate(-8deg);
+    }
+
+    /* Křídlo – za tělem */
+    .kridlo {
+      position: absolute;
+      width: 54px;
+      height: 26px;
+      background: linear-gradient(135deg, #686880 0%, #585870 70%, #484860 100%);
+      border-radius: 50% 40% 60% 50%;
+      bottom: 29px;
+      left: 14px;
+      z-index: 2;
+      transform-origin: 80% 50%;
+      animation: maváníKřídlem 0.9s ease-in-out infinite;
+    }
+
+    @keyframes maváníKřídlem {
+      0%, 100% { transform: rotate(-8deg); }
+      50%       { transform: rotate(-20deg) scaleY(0.82); }
+    }
+
+    /* Tělo */
+    .telo {
+      position: absolute;
+      width: 56px;
+      height: 37px;
+      background: linear-gradient(135deg, #78788e 0%, #686880 60%, #585870 100%);
+      border-radius: 55% 65% 55% 45%;
+      bottom: 23px;
+      left: 16px;
+      z-index: 3;
+    }
+
+    /* Hrudník – světlejší přední část */
+    .hrudnik {
+      position: absolute;
+      width: 30px;
+      height: 29px;
+      background: linear-gradient(135deg, #beb0c0 0%, #a898b0 50%, #9888a8 100%);
+      border-radius: 40% 50% 60% 50%;
+      bottom: 26px;
+      left: 32px;
+      z-index: 4;
+    }
+
+    /* Hlava */
+    .hlava {
+      position: absolute;
+      width: 29px;
+      height: 27px;
+      background: linear-gradient(135deg, #78788e 0%, #606078 100%);
+      border-radius: 50%;
+      bottom: 54px;
+      left: 48px;
+      z-index: 5;
+      animation: kivaHlavou 1.4s ease-in-out infinite;
+    }
+
+    /* Holub kiváním hlavy dopředu při chůzi */
+    @keyframes kivaHlavou {
+      0%, 100% { transform: translateX(0); }
+      35%       { transform: translateX(5px); }
+      65%       { transform: translateX(0); }
+    }
+
+    /* Duhový lesk na krku */
+    .krc {
+      position: absolute;
+      width: 18px;
+      height: 16px;
+      background: linear-gradient(135deg, #5038a0 0%, #3878a8 50%, #38a060 100%);
+      border-radius: 50%;
+      bottom: 44px;
+      left: 50px;
+      z-index: 5;
+      opacity: 0.55;
+    }
+
+    /* Zobák (horní čelist) */
+    .zobak {
+      position: absolute;
+      width: 16px;
+      height: 6px;
+      background: linear-gradient(to right, #c8a830 0%, #b09020 100%);
+      border-radius: 0 5px 3px 0;
+      bottom: 63px;
+      left: 73px;
+      z-index: 7;
+    }
+
+    /* Dolní čelist zobáku */
+    .zobak::after {
+      content: '';
+      position: absolute;
+      width: 13px;
+      height: 5px;
+      background: linear-gradient(to right, #b09020 0%, #a08010 100%);
+      border-radius: 0 3px 5px 0;
+      top: 4px;
+      left: 0;
+    }
+
+    /* Oko */
+    .oko {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #dd4e1a;
+      border-radius: 50%;
+      border: 1.5px solid #c03e10;
+      bottom: 68px;
+      left: 68px;
+      z-index: 8;
+    }
+
+    /* Zornice */
+    .oko::after {
+      content: '';
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: #111;
+      border-radius: 50%;
+      top: 1px;
+      left: 1px;
+    }
+
+    /* Odlesk v oku */
+    .oko::before {
+      content: '';
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: rgba(255,255,255,0.75);
+      border-radius: 50%;
+      top: 1px;
+      left: 3px;
+      z-index: 9;
+    }
+
+    /* Nožičky */
+    .nozicky {
+      position: absolute;
+      bottom: 4px;
+      left: 26px;
+      width: 44px;
+      height: 20px;
+      z-index: 3;
+    }
+
+    .nozicka {
+      position: absolute;
+      width: 3px;
+      height: 16px;
+      background: #c89830;
+      border-radius: 2px 2px 0 0;
+      bottom: 0;
+      transform-origin: top center;
+    }
+
+    .nozicka:first-child {
+      left: 6px;
+      animation: krokLevaNoha 0.46s ease-in-out infinite;
+    }
+
+    .nozicka:last-child {
+      left: 20px;
+      animation: krokPravaNoha 0.46s ease-in-out infinite;
+    }
+
+    /* Přední prsty */
+    .nozicka::before {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 3px;
+      background: #c89830;
+      border-radius: 3px;
+      bottom: 0;
+      left: -4px;
+      transform: rotate(-10deg);
+    }
+
+    /* Zadní prst */
+    .nozicka::after {
+      content: '';
+      position: absolute;
+      width: 7px;
+      height: 3px;
+      background: #c89830;
+      border-radius: 3px;
+      bottom: 2px;
+      left: 2px;
+      transform: rotate(35deg);
+      transform-origin: left bottom;
+    }
+
+    @keyframes krokLevaNoha {
+      0%, 100% { transform: rotate(-14deg); }
+      50%       { transform: rotate(14deg); }
+    }
+
+    @keyframes krokPravaNoha {
+      0%        { transform: rotate(14deg); }
+      50%       { transform: rotate(-14deg); }
+      100%      { transform: rotate(14deg); }
+    }
+
+    /* === LÉTÁNÍ PO KLIKNUTÍ === */
+    #holub-wrapper.leti .kridlo {
+      animation: letKridlem 0.17s ease-in-out infinite;
+    }
+
+    @keyframes letKridlem {
+      0%, 100% { transform: rotate(-42deg) scaleY(0.55); }
+      50%       { transform: rotate(18deg) scaleY(1.35); }
+    }
+
+    /* Nohy přitažené při letu */
+    #holub-wrapper.leti .nozicka:first-child {
+      animation: none;
+      transform: rotate(22deg);
+    }
+
+    #holub-wrapper.leti .nozicka:last-child {
+      animation: none;
+      transform: rotate(-8deg);
+    }
+
+    /* Hlava se přestane kývat při letu */
+    #holub-wrapper.leti .hlava {
+      animation: none;
+    }
+
+    /* === ŘEČOVÝ BUBLINÁK === */
+    #bublinak {
+      position: absolute;
+      /* Umístění těsně nad holuba */
+      bottom: 88px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border: 2.5px solid #2a2a2a;
+      border-radius: 14px;
+      padding: 8px 14px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #222;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 20;
+      white-space: normal;
+      max-width: 230px;
+      text-align: center;
+      line-height: 1.35;
+    }
+
+    /* Šipka bubliny (vnější obrys) */
+    #bublinak::after {
+      content: '';
+      position: absolute;
+      bottom: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 7px solid transparent;
+      border-top-color: #2a2a2a;
+    }
+
+    /* Šipka bubliny (výplň) */
+    #bublinak::before {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: white;
+      z-index: 1;
+    }
+
+    /* Třída pro zobrazení bubliny */
+    #bublinak.viditelny {
+      opacity: 1;
+    }
+
+    /* === NADPIS HRY === */
+    #nadpis {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 30px;
+      font-weight: 900;
+      color: white;
+      text-shadow:
+        2px  2px 0 #000,
+       -2px -2px 0 #000,
+        2px -2px 0 #000,
+       -2px  2px 0 #000;
+      z-index: 50;
+      pointer-events: none;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    #pokyn {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.88);
+      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.9);
+      z-index: 50;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nebe s přechodem soumraku -->
+  <div id="obloha"></div>
+
+  <!-- Hvězdy (vygenerované JavaScriptem) -->
+  <div id="hvezdy"></div>
+
+  <!-- Budovy (vygenerované JavaScriptem) -->
+  <div id="budovy-kontejner"></div>
+
+  <!-- Chodník -->
+  <div id="chodnik"></div>
+
+  <!-- Holub a jeho řečový bublinák -->
+  <div id="holub-wrapper">
+    <!-- Bublina mimo #holub, aby se neotáčela spolu s holubem -->
+    <div id="bublinak"></div>
+    <!-- Samotný holub – flipuje se scaleX(-1) podle směru pohybu -->
+    <div id="holub">
+      <div class="ocas"></div>
+      <div class="kridlo"></div>
+      <div class="telo"></div>
+      <div class="hrudnik"></div>
+      <div class="krc"></div>
+      <div class="hlava"></div>
+      <div class="zobak"></div>
+      <div class="oko"></div>
+      <div class="nozicky">
+        <div class="nozicka"></div>
+        <div class="nozicka"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nadpis hry -->
+  <div id="nadpis">🐦 Chyť holuba!</div>
+  <div id="pokyn">Klikni na holuba... jestli dokážeš!</div>
+
+  <script>
+    // ==========================================
+    // HLÁŠKY HOLUBA
+    // Každá hláška má text zobrazený v bublině
+    // a název mp3 souboru ve stejné složce jako HTML
+    // ==========================================
+    const hlasky = [
+      { text: "Neutíkej mi, holoubku!",        zvuk: "neutikej-mi-holoubku.mp3" },
+      { text: "Holoubku jak se máš holoubku?", zvuk: "holoubku-jak-se-mas-holoubku.mp3" },
+      { text: "Pojď sem, holoubku",             zvuk: "pojd-sem-holoubku.mp3" },
+      { text: "Holoubku, kde máš rodiče",       zvuk: "holoubku-kde-mas-rodice.mp3" },
+      { text: "Ahoj holoubku",                  zvuk: "ahoj-holoubku.mp3" },
+      { text: "Jdu si pro tebe holoubku",       zvuk: "jdu-si-pro-tebe-holoubku.mp3" },
+      { text: "Holoubku kde seš tady seš",      zvuk: "holoubku-kde-ses-tady-ses.mp3" },
+    ];
+
+    // ==========================================
+    // REFERENCE NA KLÍČOVÉ HTML ELEMENTY
+    // ==========================================
+    const holubWrapper   = document.getElementById('holub-wrapper');
+    const holubEl        = document.getElementById('holub');
+    const bublinakEl     = document.getElementById('bublinak');
+    const budovyEl       = document.getElementById('budovy-kontejner');
+    const hvezdyEl       = document.getElementById('hvezdy');
+
+    // ==========================================
+    // GENEROVÁNÍ HVĚZD NA OBLOZE
+    // ==========================================
+    function vytvorHvezdy() {
+      for (let i = 0; i < 90; i++) {
+        const h = document.createElement('div');
+        h.className = 'hvezda';
+
+        // Náhodná velikost (menší hvězdy jsou častější)
+        const vel = Math.random() * 2.2 + 0.8;
+        h.style.width              = vel + 'px';
+        h.style.height             = vel + 'px';
+        h.style.left               = Math.random() * 100 + '%';
+        h.style.top                = Math.random() * 100 + '%';
+        h.style.animationDuration  = (Math.random() * 3 + 1.5) + 's';
+        h.style.animationDelay     = (Math.random() * 5) + 's';
+
+        hvezdyEl.appendChild(h);
+      }
+    }
+
+    // ==========================================
+    // GENEROVÁNÍ MRAKŮ
+    // Každý mrak je obdélník se dvěma kulatými kopečky nahoře
+    // ==========================================
+    function vytvorMraky() {
+      for (let i = 0; i < 6; i++) {
+        const kontejner = document.createElement('div');
+        kontejner.className = 'mrak-kontejner';
+
+        const sirka    = Math.random() * 130 + 70;   // šířka mraku v px
+        const vyska    = Math.random() * 30 + 18;    // výška základny
+        const topPct   = Math.random() * 22 + 3;     // výška na obloze (%)
+        const rychlost = Math.random() * 55 + 22;    // sekund na přelet
+        const zpozdeni = Math.random() * -70;        // záporný delay = už je na cestě
+
+        kontejner.style.top           = topPct + '%';
+        kontejner.style.left          = '-280px';
+        kontejner.style.animation     = `letMraku ${rychlost}s linear ${zpozdeni}s infinite`;
+
+        // Základní tvar mraku
+        const telo = document.createElement('div');
+        telo.style.cssText = `
+          position: relative;
+          width: ${sirka}px;
+          height: ${vyska}px;
+          background: rgba(190, 205, 225, 0.45);
+          border-radius: 60px;
+        `;
+
+        // Dva kopečky na vrchu pro typický tvar mraku
+        const kopce = [
+          { lPct: 0.18, wPct: 0.52, hOff: 0.14 },
+          { lPct: 0.52, wPct: 0.36, hOff: 0.09 },
+        ];
+
+        kopce.forEach(k => {
+          const kopecek = document.createElement('div');
+          kopecek.style.cssText = `
+            position: absolute;
+            width:  ${sirka * k.wPct}px;
+            height: ${sirka * k.wPct * 0.7}px;
+            background: rgba(200, 215, 230, 0.5);
+            border-radius: 50%;
+            top:  ${-sirka * k.hOff}px;
+            left: ${sirka * k.lPct}px;
+          `;
+          telo.appendChild(kopecek);
+        });
+
+        kontejner.appendChild(telo);
+        document.body.appendChild(kontejner);
+      }
+    }
+
+    // ==========================================
+    // GENEROVÁNÍ BUDOV MĚSTSKÉ SILUETY
+    // Budovy mají náhodné výšky, barvy a osvětlená okna
+    // ==========================================
+    function vytvorBudovy() {
+      // Pokryjeme celou šířku obrazovky + trochu navíc
+      const celkovaSirka = window.innerWidth + 250;
+      let x = 0;
+
+      // Tmavé noční barvy fasád
+      const paleta = [
+        '#181828', '#1c2035', '#141422', '#202038',
+        '#1a1830', '#20182a', '#1e2230', '#141830',
+      ];
+
+      while (x < celkovaSirka) {
+        const sirka = Math.floor(Math.random() * 72) + 34;   // 34–106 px
+        const vyska = Math.floor(Math.random() * 230) + 55;  // 55–285 px
+        const barva = paleta[Math.floor(Math.random() * paleta.length)];
+
+        const budova = document.createElement('div');
+        budova.className    = 'budova';
+        budova.style.width  = sirka + 'px';
+        budova.style.height = vyska + 'px';
+        budova.style.background  = barva;
+        budova.style.marginRight = Math.floor(Math.random() * 5) + 'px';
+        budova.style.flexShrink  = '0';
+
+        // Někdy přidáme střešní nástavbu (výtah/klimatizace)
+        if (Math.random() > 0.6) {
+          const nastavba = document.createElement('div');
+          const nSirka   = Math.floor(sirka * 0.3);
+          const nVyska   = Math.floor(Math.random() * 20) + 10;
+          nastavba.style.cssText = `
+            position: absolute;
+            width: ${nSirka}px;
+            height: ${nVyska}px;
+            background: ${barva};
+            top: ${-nVyska}px;
+            left: ${Math.floor((sirka - nSirka) / 2)}px;
+            filter: brightness(0.9);
+          `;
+          budova.appendChild(nastavba);
+        }
+
+        // Okna budovy
+        const sloupce = Math.floor(sirka / 18);
+        const radky   = Math.floor(vyska / 24);
+
+        for (let r = 0; r < radky; r++) {
+          for (let s = 0; s < sloupce; s++) {
+            const okno = document.createElement('div');
+            okno.className    = 'okno';
+            okno.style.width  = '10px';
+            okno.style.height = '13px';
+            okno.style.left   = (s * 18 + 5) + 'px';
+            okno.style.top    = (r * 24 + 8) + 'px';
+
+            // 65 % oken je rozsvícených
+            if (Math.random() > 0.35) {
+              if (Math.random() > 0.38) {
+                // Teplé žluté světlo (domácí lampa)
+                const g = Math.floor(Math.random() * 65 + 165);
+                okno.style.background = `rgba(255, ${g}, ${Math.floor(Math.random() * 25)}, 0.95)`;
+                okno.style.boxShadow  = '0 0 7px rgba(255, 200, 50, 0.5)';
+              } else {
+                // Chladné modré světlo (monitor/TV)
+                const b = Math.floor(Math.random() * 55 + 200);
+                okno.style.background = `rgba(140, 190, ${b}, 0.88)`;
+                okno.style.boxShadow  = '0 0 6px rgba(100, 170, 255, 0.4)';
+              }
+            } else {
+              // Zhasnuté okno
+              okno.style.background = 'rgba(4, 4, 14, 0.85)';
+            }
+
+            budova.appendChild(okno);
+          }
+        }
+
+        budovyEl.appendChild(budova);
+        x += sirka + Math.floor(Math.random() * 5);
+      }
+    }
+
+    // ==========================================
+    // STAV HOLUBA
+    // ==========================================
+    let poziceX        = Math.floor(window.innerWidth / 2); // aktuální X poloha
+    let casovacBubliny = null;  // ID timeoutu pro skrytí bubliny
+    let casovacPohybu  = null;  // ID timeoutu pro příští automatický krok
+
+    // ==========================================
+    // PŘESUN HOLUBA NA ZADANOU POZICI
+    // zLetu = true po kliknutí (přidá animaci letu)
+    // ==========================================
+    function presunHoluba(novaX, zLetu) {
+      const okraj = 15;
+      const maxX  = window.innerWidth - 115;
+
+      // Urči směr pohybu a nastav flip holuba
+      if (novaX < poziceX) {
+        holubWrapper.classList.add('doleva');
+      } else {
+        holubWrapper.classList.remove('doleva');
+      }
+
+      // Omeziž pohyb na viditelnou oblast obrazovky
+      poziceX = Math.max(okraj, Math.min(maxX, novaX));
+      holubWrapper.style.left = poziceX + 'px';
+
+      // Animace letu (rychlé mávání křídly)
+      if (zLetu) {
+        holubWrapper.classList.add('leti');
+        setTimeout(() => holubWrapper.classList.remove('leti'), 600);
+      }
+    }
+
+    // ==========================================
+    // VÝBĚR NÁHODNÉ POZICE DALEKO OD HOLUBA
+    // Holub nikdy neskočí příliš blízko – vždy utíká
+    // ==========================================
+    function nahodnaPoloha() {
+      const maxX = window.innerWidth - 115;
+      let novaX;
+      // Opakuj, dokud nová pozice není alespoň 200 px daleko
+      do {
+        novaX = Math.floor(Math.random() * maxX);
+      } while (Math.abs(novaX - poziceX) < 200);
+      return novaX;
+    }
+
+    // ==========================================
+    // AUTOMATICKÝ POHYB HOLUBA
+    // Holub se sám od sebe pohybuje každé 2–3 sekundy
+    // ==========================================
+    function nastavAutomatickyPohyb() {
+      clearTimeout(casovacPohybu);
+
+      // Náhodné zpoždění 2 až 3 sekundy
+      const prodleva = Math.random() * 1000 + 2000;
+
+      casovacPohybu = setTimeout(() => {
+        // Malý krok doleva nebo doprava (40–140 px)
+        const smer = Math.random() > 0.5 ? 1 : -1;
+        const krok = Math.floor(Math.random() * 100) + 40;
+        presunHoluba(poziceX + smer * krok, false);
+
+        // Naplánuj další krok
+        nastavAutomatickyPohyb();
+      }, prodleva);
+    }
+
+    // ==========================================
+    // ZOBRAZENÍ HLÁŠKY A PŘEHRÁNÍ ZVUKU
+    // ==========================================
+    function zobrazHlasku() {
+      // Vyber náhodnou hlášku ze seznamu
+      const hlaska = hlasky[Math.floor(Math.random() * hlasky.length)];
+
+      // Zobraz text v bublině
+      bublinakEl.textContent = hlaska.text;
+      bublinakEl.classList.add('viditelny');
+
+      // Přehraj zvuk – tiše ignoruj chybu, pokud soubor chybí
+      try {
+        new Audio(hlaska.zvuk).play().catch(() => {});
+      } catch (e) {}
+
+      // Skryj bublinu po 2.5 sekundách
+      clearTimeout(casovacBubliny);
+      casovacBubliny = setTimeout(() => {
+        bublinakEl.classList.remove('viditelny');
+      }, 2500);
+    }
+
+    // ==========================================
+    // KLIKNUTÍ NA HOLUBA – holub utíká!
+    // ==========================================
+    holubEl.addEventListener('click', function(e) {
+      // Zabrání probublávání kliknutí na pozadí
+      e.stopPropagation();
+
+      // Holub uletí na náhodnou vzdálenou pozici
+      presunHoluba(nahodnaPoloha(), true);
+
+      // Zobraz hlášku holuba
+      zobrazHlasku();
+
+      // Resetuj časovač automatického pohybu
+      nastavAutomatickyPohyb();
+    });
+
+    // ==========================================
+    // SPUŠTĚNÍ HRY
+    // ==========================================
+    vytvorHvezdy();
+    vytvorMraky();
+    vytvorBudovy();
+
+    // Počáteční pozice holuba (přibližně uprostřed)
+    holubWrapper.style.left = poziceX + 'px';
+
+    // Spusť automatický pohyb holuba
+    nastavAutomatickyPohyb();
+
+    // ==========================================
+    // PŘIZPŮSOBENÍ PŘI ZMĚNĚ VELIKOSTI OKNA
+    // ==========================================
+    window.addEventListener('resize', () => {
+      if (poziceX > window.innerWidth - 115) {
+        poziceX = window.innerWidth - 115;
+        holubWrapper.style.left = poziceX + 'px';
+      }
+    });
+  </script>
+</body>
+</html>
